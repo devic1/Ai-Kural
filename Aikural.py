@@ -32,11 +32,16 @@ for i in rd:
   data.append(i[:-1])
 data
 
+for i in data:
+  print(i.split(' '))
+
 lett = set()
 for i in data:
-  for j in i:
+  for j in i.split(' '):
     lett.add(j)
 lett.add(".")
+
+print(lett)
 
 ltoi = {i:k for k,i in enumerate(sorted(lett))}
 ll_n = len(ltoi)
@@ -73,6 +78,8 @@ class RNN(nn.Module):
 
 rnn = RNN(ll_n,128,ll_n).to(device)
 
+rnn.load_state_dict(torch.load("/content/drive/MyDrive/college/rnn_model_thirukuralv1.pt"))
+
 def one_enc(lett):
   return torch.nn.functional.one_hot(torch.tensor(ltoi[lett]),num_classes=ll_n).unsqueeze(0)
 
@@ -81,18 +88,20 @@ def getrandinp():
   randn = torch.randint(0,lente,(1,))
   inp = torch.tensor([])
   out = torch.tensor([],dtype=torch.long)
-  word = data[randn]
-  for i,j in zip(word,word[1:]+"."):
+  word = data[randn].split(' ')
+  for i,j in zip(word,word[1:]+["."]):
     tens = one_enc(i)
     inp = torch.cat((inp,tens),0)
     teno = torch.tensor(ltoi[j]).unsqueeze(0)
     out = torch.cat((out,teno))
   return inp,out.unsqueeze(1),word
 
+data[3]
+
 loss_fn = nn.NLLLoss()
 optimizer = torch.optim.SGD(rnn.parameters(),lr=0.001)
 
-epoch = 40000
+epoch = 1000
 rnn.train()
 for num in range(epoch):
   hid = rnn.temp_hidden()
@@ -117,23 +126,29 @@ rnn.eval()
 with torch.no_grad():
   for i in range(10):
     #t = input("Enter a continuous letter : ")
-    t = itol[torch.randint(5,ll_n,(1,)).item()]
+    while True:
+      t = itol[torch.randint(0,ll_n,(1,)).item()]
+      if t[-1] != ".":
+        break        
     hid = rnn.temp_hidden()
     hid = hid.to(device)
     real_out = ""
+    l = 0
     while True:
       n = one_enc(t)
       n = n.to(device)
       out,hid = rnn(n,hid)
-      _,result = out.topk(3)
-      res = result[0][torch.randint(0,3,(1,))].item()
-      real_out += t
-      if itol[res] == ".":
+      _,result = out.topk(6)
+      res = result[0][torch.randint(0,6,(1,))].item()
+      real_out += t+" "
+      l += 1
+      if itol[res][-1] == "." and l > 4:
+        real_out += itol[res]
         break
       t = itol[res]
     print(real_out)
 
-torch.save(rnn.state_dict(), "/content/drive/MyDrive/college/rnn_model_thirukural.pt")
+torch.save(rnn.state_dict(), "/content/drive/MyDrive/college/rnn_model_thirukuralv1.pt")
 
 print("Happy Ending :)")
 
